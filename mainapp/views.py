@@ -9,9 +9,59 @@ import base64
 import cv2
 import numpy as np
 
+dashboard = "rust"
+
 @login_required
 def index(req):
-    return render(req, 'index/index.html')
+    dashboard = "rust"
+    context = {'dashboard': dashboard}
+    return render(req, 'index/index.html',context)
+
+def indexrust(req):
+    dashboard = "rust"
+    context = {'dashboard': dashboard}
+    return render(req, 'index/indexrust.html',context)
+
+def indexanpr(req):
+    dashboard = "anpr"
+    context = {'dashboard': dashboard}
+    return render(req, 'index/indexanpr.html',context)
+
+def indexscratch(req):
+    dashboard = "scratch"
+    context = {'dashboard': dashboard}
+    return render(req, 'index/indexscratch.html',context)
+
+def analyzerust(req):
+    if req.FILES:
+        img_res = {}
+        img_px = []
+        for file in req.FILES.values():
+            img=cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_UNCHANGED)
+            img_hsv=cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            lower_red = np.array([0,70,70])
+            upper_red = np.array([20,200,150])
+            mask0 = cv2.inRange(img_hsv, lower_red, upper_red)
+            lower_red = np.array([170,70,70])
+            upper_red = np.array([180,200,150])
+            mask1 = cv2.inRange(img_hsv, lower_red, upper_red)
+            mask = mask0+mask1
+            img_px.append(np.sum(mask)/255)
+            al = cv2.bitwise_and(img,img,mask=mask)
+            dst = cv2.addWeighted(img,0.1,al,0.9,0)
+            imencoded = cv2.imencode("hello.jpg", dst)[1]
+            img_res[str(file)] = str(base64.b64encode(imencoded.tostring())).strip("b/").replace("'",'')
+            
+            with open('newfile.txt', 'w') as file:
+                file.write(str(img_res))
+    img_res['px_details'] = img_px
+    return JsonResponse(img_res)
+
+def analyzeanpr(req):
+    return "hello2"
+
+def analyzescratch(req):
+    return "hello3"
 
 def analyze(req):
     print(req.GET)

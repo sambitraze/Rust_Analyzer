@@ -1,0 +1,110 @@
+{% extends 'index/base.html' %}
+
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block head %}
+
+<link rel="stylesheet" href="{% static 'dropzone/dist/min/basic.min.css' %}">
+<link rel="stylesheet" href="{% static 'dropzone/dist/min/dropzone.min.css' %}">
+<script src="{% static 'dropzone/dist/min/dropzone.min.js'%}"></script>
+
+<style>
+    div{
+        text-align:center;
+    }
+
+    form#my-dropzone{
+        border: 2px dotted dodgerblue;
+    }
+
+    #result {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100vw;
+        flex-wrap: wrap;
+    }
+</style>
+
+{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="h3 mb-5 text-gray-800">ANPR Analyzer</h1>
+</div>
+
+<div class="row">
+    <div class="col-12 col-sm-6 offset-sm-3">
+        <form action="{% url 'analyze_view' %}" class="dropzone needsclick dz-clickable" id="my-dropzone">
+            {% csrf_token %}
+        </form>
+        <button id="uploadfiles" type="button" class="btn btn-primary m-5">Analyze Now</button>
+    </div>
+    <!-- <div style="margin-left: 3rem; margin-right: 3rem;"> -->
+        <div id="result">
+        </div>
+    <!-- </div> -->
+
+</div>
+
+{% endblock %}
+
+{% block custom_script %}
+let myDropzone;
+let data;
+let ori_data;
+let server_data;
+
+Dropzone.options.myDropzone = {
+    paramName: "file",
+    addRemoveLinks: true,
+    uploadMultiple: true,
+    dictDefaultMessage: "Drop one or more jpg files here to analyze",
+    dictResponseError: "There is some error, we'll fix it soon",
+    acceptedFiles: '.jpg, .jpeg',
+    autoProcessQueue: false,
+    parallelUploads: 10,
+    init: () =>{
+        myDropzone = Dropzone.forElement("#my-dropzone");
+    },
+    successmultiple: function(t1, s1){
+        console.log(t1)
+        console.log(s1)
+        ori_data = t1;
+        data = s1;
+        server_data = s1.px_details;
+        let px_details = data['px_details']
+        delete data.px_details;
+        let count = 0;
+        for(file in data){
+            let element = document.createElement('div')
+            element.classList = ['row'];
+            element.style.textAlign = "center";
+            element.style.color = "white";
+            element.innerHTML = `
+                <div class="column" style="text-align: center;color:white">
+                    <img src="data:image/png;base64,${data[file]}" width="250" height="200" style="margin: 20px 25px 5px 5px;"><br>
+                    <h5 style="color:black">Found Rust = ${px_details[count]}</h5>
+                    <img src="${ori_data[count].dataURL}" width="250" height="200" style="margin: 20px 25px 5px 5px;">
+                    <br>
+                </div>
+            <br>
+            <!-- <img class="result-img" width="250px" src="data:image/png;base64,${data[file]}"><p>${px_details[count]}</p> -->
+            `
+            document.getElementById('result').appendChild(element)
+            count++;
+        }
+        myDropzone.removeAllFiles();
+    }
+};
+
+$('#uploadfiles').click(function(){
+    myDropzone.processQueue();
+});
+
+
+
+
+{% endblock %}
