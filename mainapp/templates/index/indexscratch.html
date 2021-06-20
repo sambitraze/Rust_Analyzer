@@ -37,7 +37,7 @@
 
 <div class="row">
     <div class="col-12 col-sm-6 offset-sm-3">
-        <form action="{% url 'analyze_view' %}" class="dropzone needsclick dz-clickable" id="my-dropzone">
+        <form action="{% url 'analyze_scratch' %}" class="dropzone needsclick dz-clickable" id="my-dropzone">
             {% csrf_token %}
         </form>
         <button id="uploadfiles" type="button" class="btn btn-primary m-5">Analyze Now</button>
@@ -85,9 +85,9 @@ Dropzone.options.myDropzone = {
             element.style.color = "white";
             element.innerHTML = `
                 <div class="column" style="text-align: center;color:white">
-                    <img src="data:image/png;base64,${data[file]}" width="250" height="200" style="margin: 20px 25px 5px 5px;"><br>
+                    <!-- <img src="data:image/png;base64,${data[file]}" width="250" height="200" style="margin: 20px 25px 5px 5px;"><br> -->
                     <h5 style="color:black">Found Rust = ${px_details[count]}</h5>
-                    <img src="${ori_data[count].dataURL}" width="250" height="200" style="margin: 20px 25px 5px 5px;">
+                    <!-- <img src="${ori_data[count].dataURL}" width="250" height="200" style="margin: 20px 25px 5px 5px;"> -->
                     <br>
                 </div>
             <br>
