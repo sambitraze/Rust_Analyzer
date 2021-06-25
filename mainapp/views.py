@@ -140,7 +140,12 @@ def analyzescratch(req):
             for (classid, score, box) in zip(classes, scores, boxes):
                 color=colors[classid[0]]
                 label = "%s : %f" % (class_names[classid[0]], score)
-                cv2.rectangle(img, box,color, 2)
+                #cv2.rectangle(img, box,color, 2)
+                box[0] = box[0]-50
+                box[1] = box[1]-50
+                box[2] = box[2]+50
+                box[3] = box[3]+50
+                cv2.rectangle(img, box,[0,0,255], 5)
                 cv2.putText(img, label, (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255,255,255), 2)
             imencoded = cv2.imencode("hello.jpg", img)[1]            
             img_res[str(file)] = str(base64.b64encode(imencoded.tostring())).strip("b/").replace("'",'')            
