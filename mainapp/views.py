@@ -74,7 +74,6 @@ def analyzeanpr(req):
         img_px = []
         for file in req.FILES.values():
             img=cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_UNCHANGED)
-            #img = cv2.resize(img, (0, 0), fx = 0.2, fy = 0.2)
             colors = np.random.uniform(0,255,size=(len(classes),3))
             with tf.io.gfile.GFile('num_plate.pb','rb') as f:
         	    graph_def=tf.compat.v1.GraphDef()
@@ -114,10 +113,6 @@ def analyzeanpr(req):
     			        image = vision.Image(content=data)
     			        response = client.document_text_detection(image=image)
     			        doc = response.full_text_annotation.text
-                # img_res[str(file)] = str(base64.b64encode(encoded_image.tostring())).strip("b/").replace("'",'')
-                        
-                # with open('newfile.txt', 'w') as file:
-                #     file.write(str(img_res))
     img_res['px_details'] = doc
     return JsonResponse(img_res)
 
@@ -175,18 +170,12 @@ def analyze(req):
             al = cv2.bitwise_and(img,img,mask=mask)
             dst = cv2.addWeighted(img,0.1,al,0.9,0)
             imencoded = cv2.imencode("hello.jpg", dst)[1]
-            # response_pickled  = jsonpickle.encode(imencoded)
-            # filename="res"+str(image_file.split("/")[-1].split(".")[0])+'.jpg'
-            # file_name['filename'+str(i)]=filename
-            # file_name['filename'+str(i+5)]=str(image_file.split("/")[-1].split(".")[0])+'.jpg'
-            # print(imencoded.tostring())
             img_res[str(file)] = str(base64.b64encode(imencoded.tostring())).strip("b/").replace("'",'')
             
             with open('newfile.txt', 'w') as file:
                 file.write(str(img_res))
     img_res['px_details'] = img_px
     return JsonResponse(img_res)
-    # return HttpResponse(imencoded.tostring(), content_type="image/png")
 
 def signup_view(request):
     form = UserCreationForm()
