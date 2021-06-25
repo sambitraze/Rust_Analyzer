@@ -203,7 +203,7 @@ def analyzeiocr(req):
 
 def analyzeobjectcount(req):
     class_names = []
-    with open("coco.names", "r") as f:
+    with open("coco2.names", "r") as f:
         class_names = [cname.strip() for cname in f.readlines()]
     if req.FILES:
         img_res = {}
@@ -211,26 +211,22 @@ def analyzeobjectcount(req):
         for file in req.FILES.values():
             img = cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_UNCHANGED)
             colors = np.random.uniform(0, 255, size=(len(class_names), 3))
-            net = cv2.dnn.readNet("custom-yolov4-tiny-detector_best.weights", "custom-yolov4-tiny-detector.cfg")
+            net = cv2.dnn.readNet("yolov4-csp.weights", "yolov4-csp.cfg")
             net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
             net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA_FP16)
             model = cv2.dnn_DetectionModel(net)
-            model.setInputParams(size=(640, 640), scale=1 / 255, swapRB=True)
+            model.setInputParams(size=(512, 512), scale=1 / 255, swapRB=True)
             classes, scores, boxes = model.detect(img, CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
             for (classid, score, box) in zip(classes, scores, boxes):
                 color = colors[classid[0]]
                 label = "%s : %f" % (class_names[classid[0]], score)
-                # cv2.rectangle(img, box,color, 2)
-                box[0] = box[0] - 50
-                box[1] = box[1] - 50
-                box[2] = box[2] + 50
-                box[3] = box[3] + 50
-                cv2.rectangle(img, box, [0, 0, 255], 5)
-                cv2.putText(img, label, (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                cv2.rectangle(img, box, color, 2)
+                cv2.putText(img, label, (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
             imencoded = cv2.imencode("hello.jpg", img)[1]
             img_res[str(file)] = str(base64.b64encode(imencoded.tostring())).strip("b/").replace("'", '')
             with open('newfile.txt', 'w') as file:
                 file.write(str(img_res))
+            img_px.append(len(boxes))
     img_res['px_details'] = img_px
     return JsonResponse(img_res)
 

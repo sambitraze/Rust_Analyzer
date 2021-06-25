@@ -37,7 +37,7 @@
 
 <div class="row">
     <div class="col-12 col-sm-6 offset-sm-3">
-        <form action="{% url 'analyze_rust' %}" class="dropzone needsclick dz-clickable" id="my-dropzone">
+        <form action="{% url 'analyze_objectcount' %}" class="dropzone needsclick dz-clickable" id="my-dropzone">
             {% csrf_token %}
         </form>
         <button id="uploadfiles" type="button" class="btn btn-primary m-5">Analyze Now</button>
@@ -84,12 +84,11 @@ Dropzone.options.myDropzone = {
             element.innerHTML = `
                 <div class="column" style="text-align: center;color:white">
                     <img src="${ori_data[count].dataURL}" width="450" height="400" style="margin: 20px 25px 5px 5px;">                   
-                    <h5 style="color:black">Found Rust = ${px_details[count]}</h5>
+                    <h5 style="color:black">Found quantity = ${px_details[count]}</h5>
                     <img src="data:image/png;base64,${data[file]}" width="450" height="400" style="margin: 20px 25px 5px 5px;"><br>
                     <br>
                 </div>
             <br>
-            <!-- <img class="result-img" width="250px" src="data:image/png;base64,${data[file]}"><p>${px_details[count]}</p> -->
             `
             document.getElementById('result').appendChild(element)
             count++;

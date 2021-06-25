@@ -14,7 +14,7 @@ urlpatterns = [
     path('analyze/anpr', views.analyzeanpr, name='analyze_anpr'),
     path('analyze/scratch', views.analyzescratch, name='analyze_scratch'),
     path('analyze/iocr', views.analyzeiocr, name='analyze_iocr'),
-    path('analyze/objectcount', views.analyzescratch, name='analyze_objectcount'),
+    path('analyze/objectcount', views.analyzeobjectcount, name='analyze_objectcount'),
     path('account/login/', LoginView.as_view(template_name='index/login.html'), name='login'),
     path('account/signup/', views.signup_view, name='signup'),
     path('account/logout/', LogoutView.as_view(), name='logout'),
