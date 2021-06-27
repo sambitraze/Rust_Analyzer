@@ -1,4 +1,5 @@
 import os
+import glob
 from django.http.response import JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -12,11 +13,13 @@ import numpy as np
 import tensorflow as tf
 from google.cloud import vision
 import easyocr
+from imageio import imread, imsave
 
 reader = easyocr.Reader(['en'])
 
 import PIL
 from PIL import ImageDraw
+from PIL import Image as imm
 
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = r'creds.json'
 client = vision.ImageAnnotatorClient()
@@ -62,6 +65,12 @@ def indexobjectcount(req):
     dashboard = "objectcount"
     context = {'dashboard': dashboard}
     return render(req, 'index/indexobjectcount.html', context)
+
+
+def indexfacebeauty(req):
+    dashboard = "facebeauty"
+    context = {'dashboard': dashboard}
+    return render(req, 'index/indexfacebeauty.html', context)
 
 
 def analyzerust(req):
@@ -231,6 +240,34 @@ def analyzeobjectcount(req):
     return JsonResponse(img_res)
 
 
+def analyzefacebeauty(req):
+    makeup_a = 'vFG137.png'
+    makeup_b = 'vFG112.png'
+    # makeup_a = os.path.join('faces', 'makeup', 'vFG137.png')
+    # makeup_b = os.path.join('faces', 'makeup', 'vFG112.png')
+    img_size = 256
+    if req.FILES:
+        img_res = {}
+        img_px = []
+        for file in req.FILES.values():
+            img = file
+            model = DMT(makeup_a, makeup_b, img, img_size)
+            model.load_model()
+            model.pairwise(img, makeup_a)
+            model.interpolated(img, makeup_a)
+            model.hybrid(img, makeup_a, makeup_b)
+            model.multimodal(file)
+            img2 = imread(os.path.join('output', 'multimodal.jpg'))
+            img3 = np.array(img2)
+            imencoded = cv2.imencode("hello.jpg", img3)[1]
+            img_res[str(file)] = str(base64.b64encode(imencoded.tostring())).strip("b/").replace("'", '')
+            with open('newfile.txt', 'w') as file:
+                file.write(str(img_res))
+            img_px.append("0")
+    img_res['px_details'] = img_px
+    return JsonResponse(img_res)
+
+
 def analyze(req):
     print(req.GET)
     print(req.POST)
@@ -253,7 +290,6 @@ def analyze(req):
             dst = cv2.addWeighted(img, 0.1, al, 0.9, 0)
             imencoded = cv2.imencode("hello.jpg", dst)[1]
             img_res[str(file)] = str(base64.b64encode(imencoded.tostring())).strip("b/").replace("'", '')
-
             with open('newfile.txt', 'w') as file:
                 file.write(str(img_res))
     img_res['px_details'] = img_px
@@ -268,3 +304,111 @@ def signup_view(request):
             form.save()
             return redirect('login')
     return render(request, 'index/register.html', {'form': form})
+
+
+class DMT(object):
+    def __init__(self, makeup_a, makeup_b, file, img_size):
+        self.makeup_a = makeup_a
+        self.makeup_b = makeup_b
+        self.img_size = img_size
+        self.pb = 'dmt.pb'
+        self.style_dim = 8
+
+    def preprocess(self, img):
+        return (img / 255. - 0.5) * 2
+
+    def deprocess(self, img):
+        return (img + 1) / 2
+
+    def load_image(self, imginp):
+        imagee = PIL.Image.open(imginp)
+        path = np.array(imagee)
+        img = cv2.resize(path, (self.img_size, self.img_size))
+        img_ = np.expand_dims(self.preprocess(img), 0)
+        return img / 255., img_
+
+
+    def load_model(self):
+        with tf.Graph().as_default():
+            output_graph_def = tf.compat.v1.GraphDef()
+
+            with open(self.pb, 'rb') as fr:
+                output_graph_def.ParseFromString(fr.read())
+                tf.import_graph_def(output_graph_def, name='')
+
+            self.sess = tf.compat.v1.Session()
+            self.sess.run(tf.compat.v1.global_variables_initializer())
+            graph = tf.compat.v1.get_default_graph()
+            self.X = graph.get_tensor_by_name('X:0')
+            self.Y = graph.get_tensor_by_name('Y:0')
+            self.S = graph.get_tensor_by_name('S:0')
+            self.X_content = graph.get_tensor_by_name('content_encoder/content_code:0')
+            self.X_style = graph.get_tensor_by_name('style_encoder/style_code:0')
+            self.Xs = graph.get_tensor_by_name('decoder_1/g:0')
+            self.Xf = graph.get_tensor_by_name('decoder_2/g:0')
+
+    def pairwise(self, A, B):
+        A_img, A_img_ = self.load_image(A)
+        B_img, B_img_ = self.load_image(B)
+        Xs_ = self.sess.run(self.Xs, feed_dict={self.X: A_img_, self.Y: B_img_})
+
+        result = np.ones((self.img_size, 3 * self.img_size, 3))
+        result[:, :self.img_size] = A_img
+        result[:, self.img_size: 2 * self.img_size] = B_img
+        result[:, 2 * self.img_size:] = self.deprocess(Xs_)[0]
+        imsave(os.path.join('output', 'pairwise.jpg'), result)
+
+    def interpolated(self, A, B, n=3):
+        A_img, A_img_ = self.load_image(A)
+        B_img, B_img_ = self.load_image(B)
+        A_style = self.sess.run(self.X_style, feed_dict={self.X: A_img_})
+        B_style = self.sess.run(self.X_style, feed_dict={self.X: B_img_})
+
+        result = np.ones((self.img_size, (n + 3) * self.img_size, 3))
+        result[:, :self.img_size] = A_img
+        result[:, (n + 2) * self.img_size:] = B_img
+
+        for i in range(n + 1):
+            Xf_ = self.sess.run(self.Xf, feed_dict={self.X: A_img_, self.S: (n - i) / n * A_style + i / n * B_style})
+            result[:, (i + 1) * self.img_size: (i + 2) * self.img_size] = self.deprocess(Xf_)[0]
+        imsave(os.path.join('output', 'interpolated.jpg'), result)
+
+    def hybrid(self, A, B1, B2, n=3):
+        A_img, A_img_ = self.load_image(A)
+        B1_img, B1_img_ = self.load_image(B1)
+        B2_img, B2_img_ = self.load_image(B2)
+        B1_style = self.sess.run(self.X_style, feed_dict={self.X: B1_img_})
+        B2_style = self.sess.run(self.X_style, feed_dict={self.X: B2_img_})
+
+        result = np.ones((self.img_size, (n + 3) * self.img_size, 3))
+        result[:, :self.img_size] = B1_img
+        result[:, (n + 2) * self.img_size:] = B2_img
+
+        for i in range(n + 1):
+            Xf_ = self.sess.run(self.Xf, feed_dict={self.X: A_img_, self.S: (n - i) / n * B1_style + i / n * B2_style})
+            result[:, (i + 1) * self.img_size: (i + 2) * self.img_size] = self.deprocess(Xf_)[0]
+        imsave(os.path.join('output', 'hybrid.jpg'), result)
+
+    def multimodal(self, A, n=3):
+        A_img, A_img_ = self.load_image(A)
+        limits = [
+            [0.21629652, -0.43972224],
+            [0.15712686, -0.44275892],
+            [0.36736163, -0.2079917],
+            [0.16977102, -0.49441707],
+            [0.2893533, -0.25862852],
+            [0.69064325, -0.11329838],
+            [0.31735066, -0.48868555],
+            [0.50784767, -0.08443227]
+        ]
+        result = np.ones((n * self.img_size, n * self.img_size, 3))
+
+        for i in range(n):
+            for j in range(n):
+                S_ = np.ones((1, 1, 1, self.style_dim))
+                for k in range(self.style_dim):
+                    S_[:, :, :, k] = np.random.uniform(low=limits[k][1], high=limits[k][0])
+                Xf_ = self.sess.run(self.Xf, feed_dict={self.X: A_img_, self.S: S_})
+                result[i * self.img_size: (i + 1) * self.img_size, j * self.img_size: (j + 1) * self.img_size] = \
+                self.deprocess(Xf_)[0]
+        imsave(os.path.join('output', 'multimodal.jpg'), result)
